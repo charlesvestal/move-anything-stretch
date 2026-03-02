@@ -1,0 +1,15 @@
+{
+    "id": "stretch",
+    "name": "Time Stretch",
+    "version": "0.1.0",
+    "description": "Real-time audio time stretching with Bungee",
+    "author": "Move Anything",
+    "dsp": "dsp.so",
+    "api_version": 2,
+    "component_type": "tool",
+    "tool_config": {
+        "interactive": true,
+        "command": null,
+        "input_extensions": [".wav"]
+    }
+}
