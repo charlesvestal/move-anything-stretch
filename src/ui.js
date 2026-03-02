@@ -16,6 +16,19 @@ import {
     activateFilepathBrowserItem
 } from '/data/UserData/move-anything/shared/filepath_browser.mjs';
 
+import {
+    MovePad1, MovePad32,
+    MoveMainButton, MoveMainKnob,
+    MoveBack,
+    MoveKnob1, MoveKnob8
+} from '/data/UserData/move-anything/shared/constants.mjs';
+
+import {
+    setLED,
+    decodeDelta,
+    shouldFilterMessage
+} from '/data/UserData/move-anything/shared/input_filter.mjs';
+
 /* ========== Layout constants (match shared/menu_layout.mjs) ========== */
 var SCREEN_W = 128;
 var SCREEN_H = 64;
@@ -30,15 +43,7 @@ var SUBTITLE_Y = 15;
 var LIST_TOP_Y = 26;
 var LIST_LINE_H = 9;
 
-/* ========== MIDI constants ========== */
-var PAD_FIRST = 68;
-var PAD_LAST  = 99;
-var CC_JOG_CLICK = 3;
-var CC_JOG_TURN  = 14;
-var CC_BACK      = 51;
-var CC_KNOB1     = 71;
-var CC_KNOB8     = 78;
-
+/* ========== LED constants ========== */
 var LED_DIM_WHITE = 1;
 var LED_WHITE     = 127;
 var LEDS_PER_FRAME = 8;
@@ -133,17 +138,6 @@ var ledInitPending = true;
 var ledInitIndex = 0;
 
 /* ========== Helpers ========== */
-
-function setLED(note, color) {
-    move_midi_internal_send([0x09, 0x90, note, color]);
-}
-
-function decodeDelta(val) {
-    if (val === 0 || val === 64) return 0;
-    if (val >= 1 && val <= 63) return val;
-    if (val >= 65 && val <= 127) return val - 128;
-    return 0;
-}
 
 function clamp(v, lo, hi) {
     return v < lo ? lo : (v > hi ? hi : v);
@@ -609,13 +603,13 @@ function draw() {
 /* ========== MIDI handling ========== */
 
 function handleCC(cc, val) {
-    if (cc === CC_JOG_TURN) {
+    if (cc === MoveMainKnob) {
         pendingJogDelta += decodeDelta(val);
         return;
     }
 
     /* Knobs also adjust selected param when editing */
-    if (cc >= CC_KNOB1 && cc <= CC_KNOB8) {
+    if (cc >= MoveKnob1 && cc <= MoveKnob8) {
         if (currentView === VIEW_MAIN) {
             var d = decodeDelta(val);
             if (d !== 0 && !editing) {
@@ -632,7 +626,7 @@ function handleCC(cc, val) {
         return;
     }
 
-    if (cc === CC_JOG_CLICK && val > 0) {
+    if (cc === MoveMainButton && val > 0) {
         if (currentView === VIEW_MAIN) {
             handleJogClick();
         } else if (currentView === VIEW_SAVE_PROMPT) {
@@ -649,7 +643,7 @@ function handleCC(cc, val) {
         return;
     }
 
-    if (cc === CC_BACK && val > 0) {
+    if (cc === MoveBack && val > 0) {
         if (currentView === VIEW_SAVE_PROMPT) {
             currentView = VIEW_MAIN;
         } else if (currentView === VIEW_SAVE_BROWSE) {
@@ -662,7 +656,7 @@ function handleCC(cc, val) {
 }
 
 function handleNoteOn(note) {
-    if (note >= PAD_FIRST && note <= PAD_LAST && currentView === VIEW_MAIN) {
+    if (note >= MovePad1 && note <= MovePad32 && currentView === VIEW_MAIN) {
         playing = !playing;
         sendPlaying(playing);
         updatePadLEDs();
@@ -671,6 +665,7 @@ function handleNoteOn(note) {
 
 globalThis.onMidiMessageInternal = function(data) {
     if (!data || data.length < 3) return;
+    if (shouldFilterMessage(data)) return;
     if (currentView === VIEW_SAVING || currentView === VIEW_SAVED) return;
 
     var status = data[0] & 0xF0;
@@ -684,10 +679,10 @@ globalThis.onMidiMessageInternal = function(data) {
 /* ========== LED management ========== */
 
 function setupLedBatch() {
-    var total = PAD_LAST - PAD_FIRST + 1;
+    var total = MovePad32 - MovePad1 + 1;
     var end = Math.min(ledInitIndex + LEDS_PER_FRAME, total);
     for (var i = ledInitIndex; i < end; i++) {
-        setLED(PAD_FIRST + i, playing ? LED_WHITE : LED_DIM_WHITE);
+        setLED(MovePad1 + i, playing ? LED_WHITE : LED_DIM_WHITE);
     }
     ledInitIndex = end;
     if (ledInitIndex >= total) {
