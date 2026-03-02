@@ -521,6 +521,7 @@ static void do_save(instance_t *inst) {
         const char *dir = inst->save_dir[0]
             ? inst->save_dir
             : "/data/UserData/UserLibrary/Samples/Move Everything/Stretch";
+        host_log("[stretch] save_dir='%s' using dir='%s'", inst->save_dir, dir);
 
         char cmd[256];
         snprintf(cmd, sizeof(cmd), "mkdir -p '%s'", dir);
@@ -642,6 +643,7 @@ static void stretch_set_param(void *ptr, const char *key, const char *val) {
     }
     else if (strcmp(key, "save_dir") == 0) {
         snprintf(inst->save_dir, sizeof(inst->save_dir), "%s", val);
+        host_log("[stretch] save_dir set to: '%s'", inst->save_dir);
     }
     else if (strcmp(key, "playing") == 0) {
         int v = atoi(val);

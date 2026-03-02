@@ -118,8 +118,8 @@ var editValue = null;
 var saveChoice = 0;
 var saveResult = "";
 var exitTimer = 0;
-var saveDelay = 0;
 var saveDestDir = "";
+var saveParamQueue = [];
 
 /* Destination directory browser */
 var destBrowserState = null;
@@ -358,17 +358,20 @@ function startSave(mode, destDir) {
     /* Stop playback */
     if (playing) {
         playing = false;
-        sendPlaying(false);
         updatePadLEDs();
     }
     saveChoice = mode;
-    if (destDir) {
-        saveDestDir = destDir;
-        host_module_set_param("save_dir", destDir);
-    }
-    host_module_set_param("save_mode", String(mode));
+    saveDestDir = destDir || "";
     currentView = VIEW_SAVING;
-    saveDelay = 2;
+
+    /* Queue params one-per-tick: in overtake mode, shadow_set_param is
+     * fire-and-forget so back-to-back calls overwrite the single shared
+     * memory slot before the shim can process the first one. */
+    saveParamQueue = [["playing", "0"]];
+    if (destDir) saveParamQueue.push(["save_dir", destDir]);
+    saveParamQueue.push(["save_mode", String(mode)]);
+    saveParamQueue.push(["save_result", ""]);
+    saveParamQueue.push(["save", "1"]);
 }
 
 /* ========== Standard menu drawing (matches shared/menu_layout.mjs) ========== */
@@ -736,14 +739,12 @@ globalThis.tick = function() {
     if (currentView === VIEW_MAIN) {
         readPlayState();
     } else if (currentView === VIEW_SAVING) {
-        if (saveDelay > 0) {
-            saveDelay--;
-        } else if (saveDelay === 0) {
-            saveDelay = -1;
-            host_module_set_param("save_result", "");
-            host_module_set_param("save", "1");
-        }
-        if (saveDelay < 0) {
+        if (saveParamQueue.length > 0) {
+            /* Send one queued param per tick (fire-and-forget safe) */
+            var p = saveParamQueue.shift();
+            host_module_set_param(p[0], p[1]);
+        } else {
+            /* All params sent — poll for result */
             var result = host_module_get_param("save_result");
             if (result && result !== "" && result !== "pending") {
                 saveResult = result;
