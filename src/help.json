@@ -4,74 +4,65 @@
     {
       "title": "Overview",
       "lines": [
-        "Pitch-preserving time",
-        "stretch for WAV files.",
+        "Change the tempo of a",
+        "WAV file without",
+        "altering its pitch.",
         "",
-        "Load a sample, set bar",
-        "length and target BPM,",
-        "preview in real time,",
-        "and save the result."
+        "Uses the Bungee",
+        "library for high",
+        "quality stretching.",
+        "",
+        "Set the file's bar",
+        "length and target BPM",
+        "to hear the result",
+        "in real time."
       ]
     },
     {
       "title": "Controls",
       "lines": [
-        "Jog wheel: scroll or",
-        " adjust values",
-        "Jog click: enter edit",
-        " or confirm action",
-        "Back: cancel edit or",
-        " exit tool",
-        "Any pad: play / stop",
-        "Knobs: adjust selected",
-        " parameter"
-      ]
-    },
-    {
-      "title": "Parameters",
-      "children": [
-        {
-          "title": "Bars",
-          "lines": [
-            "Source bar length.",
-            "",
-            "Options: 1/4, 1/2, 1,",
-            " 2, 4, 8, 16",
-            "",
-            "Auto-guessed from file",
-            "duration and project",
-            "BPM. Adjust if the",
-            "guess is wrong."
-          ]
-        },
-        {
-          "title": "Target BPM",
-          "lines": [
-            "Desired output tempo.",
-            "Range: 40-300 BPM.",
-            "",
-            "Defaults to project",
-            "BPM. Changes preview",
-            "speed in real time."
-          ]
-        }
+        "Jog: navigate menu",
+        "Jog click: edit value",
+        "Pads: toggle playback",
+        "Back: exit tool",
+        "",
+        "Menu items:",
+        " Bars: song length",
+        "   (1/4 to 16 bars)",
+        " Target BPM: desired",
+        "   tempo (40-300)",
+        " Save: export result"
       ]
     },
     {
       "title": "Saving",
       "lines": [
-        "Select Save from the",
-        "menu to save stretched",
-        "audio.",
+        "Two save modes:",
         "",
         "Overwrite: replaces",
         " the original file",
-        "New File: browse to a",
-        " folder, saves as",
-        " name-BPMbpm.wav",
         "",
-        "Playback stops during",
-        "rendering."
+        "New File: browse to",
+        " a destination folder",
+        " and save with BPM",
+        " in the filename",
+        " (e.g. loop-120bpm)"
+      ]
+    },
+    {
+      "title": "Tips",
+      "lines": [
+        "Set Bars first, then",
+        "adjust Target BPM.",
+        "",
+        "Source BPM is shown",
+        "at the top alongside",
+        "the speed multiplier.",
+        "",
+        "Press any pad to",
+        "preview the stretched",
+        "audio in real time",
+        "before saving."
       ]
     }
   ]

@@ -1,16 +1,14 @@
 # Time Stretch for Move Everything
 
-Pitch-preserving time stretch tool for WAV files on Ableton Move, powered by the [Bungee](https://github.com/bungee-audio-stretch/bungee) audio stretcher library.
-
-Load a sample, set the bar length and target BPM, preview in real time, and save the result.
+Real-time audio time stretching on your Ableton Move using the Bungee library. Change the tempo of any WAV file without altering its pitch.
 
 ## Features
 
-- Real-time Bungee-based time stretching with looped preview
-- Auto-guesses bar length from file duration and project BPM
-- Adjustable target BPM (40-300) with live audition
-- Save as overwrite or new file with directory browser
-- Standard Move Everything menu UI
+- Real-time preview — hear the stretched audio before saving
+- High quality time stretching via Bungee library
+- Set source bar count and target BPM
+- Overwrite original or save as new file
+- Browse destination folders for organized saving
 
 ## Prerequisites
 
@@ -28,8 +26,6 @@ Load a sample, set the bar length and target BPM, preview in real time, and save
 
 ### Build from Source
 
-Requires Docker (recommended) or ARM64 cross-compiler.
-
 ```bash
 git clone https://github.com/charlesvestal/move-anything-stretch
 cd move-anything-stretch
@@ -37,39 +33,33 @@ cd move-anything-stretch
 ./scripts/install.sh
 ```
 
-The build clones and statically links the Bungee library automatically.
-
 ## Usage
 
-1. Open the **Tools** menu (Shift+Vol+Step13)
+1. Open the Tools menu (Shift+Vol+Step13)
 2. Select **Time Stretch**
 3. Browse and select a WAV file
-4. Adjust **Bars** and **Target BPM** with the jog wheel
-5. Press any pad to play/stop the stretched preview
-6. Select **Save...** to overwrite or save a new file
+4. Set **Bars** to match the song length (1/4 to 16)
+5. Set **Target BPM** (40-300)
+6. Press any pad to preview the stretched audio
+7. Select **Save** to overwrite or create a new file
 
 ## Controls
 
 | Control | Function |
 |---------|----------|
-| Jog wheel | Scroll menu / adjust values |
-| Jog click | Enter edit / confirm |
-| Back | Cancel edit / exit tool |
-| Any pad | Play / stop preview |
-| Knobs | Adjust selected parameter |
+| Jog wheel | Navigate menu / adjust values |
+| Jog click | Enter edit mode / confirm |
+| Any pad | Toggle playback |
+| Back | Exit edit mode / exit tool |
 
 ## Credits
 
-- **Bungee audio stretcher**: [Parabola Research Limited](https://github.com/bungee-audio-stretch/bungee) (MPL-2.0)
-- **PFFFT**: [Julien Pommier](https://github.com/hahnloser/pffft) (BSD-like)
-- **Eigen**: [eigen.tuxfamily.org](https://eigen.tuxfamily.org) (MPL-2.0)
-- **Move Everything port**: Charles Vestal
+- **Bungee library**: High quality time stretching
+- **Move Everything framework**: [Charles Vestal](https://github.com/charlesvestal/move-anything)
 
 ## License
 
-MIT License - See [LICENSE](LICENSE)
-
-The Bungee library and its dependencies are licensed under MPL-2.0 and BSD-like terms respectively. See LICENSE for details.
+MIT License — See [LICENSE](LICENSE)
 
 ## AI Assistance Disclaimer
 

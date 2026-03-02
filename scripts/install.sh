@@ -1,21 +1,31 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/bash
+# Install Time Stretch module to Move
+set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-DIST_DIR="$REPO_ROOT/dist/stretch"
-REMOTE_DIR="/data/UserData/move-anything/modules/tools/stretch"
-DEVICE="${1:-move.local}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(dirname "$SCRIPT_DIR")"
+MODULE_ID="stretch"
 
-if [ ! -d "$DIST_DIR" ]; then
-    echo "Error: dist/stretch/ not found. Run scripts/build.sh first."
+cd "$REPO_ROOT"
+
+if [ ! -d "dist/$MODULE_ID" ]; then
+    echo "Error: dist/$MODULE_ID not found. Run ./scripts/build.sh first."
     exit 1
 fi
 
-echo "Installing stretch to $DEVICE..."
-ssh root@"$DEVICE" "mkdir -p $REMOTE_DIR"
-scp "$DIST_DIR/module.json" root@"$DEVICE":"$REMOTE_DIR/"
-scp "$DIST_DIR/ui.js"       root@"$DEVICE":"$REMOTE_DIR/"
-scp "$DIST_DIR/dsp.so"      root@"$DEVICE":"$REMOTE_DIR/"
-ssh root@"$DEVICE" "chmod +x $REMOTE_DIR/dsp.so"
-echo "Done. Restart move-anything to pick up the new tool."
+echo "=== Installing Time Stretch Module ==="
+
+# Deploy to Move - tools subdirectory
+echo "Copying module to Move..."
+ssh ableton@move.local "mkdir -p /data/UserData/move-anything/modules/tools/$MODULE_ID"
+scp -r dist/$MODULE_ID/* ableton@move.local:/data/UserData/move-anything/modules/tools/$MODULE_ID/
+
+# Set permissions
+echo "Setting permissions..."
+ssh ableton@move.local "chmod -R a+rw /data/UserData/move-anything/modules/tools/$MODULE_ID"
+
+echo ""
+echo "=== Install Complete ==="
+echo "Module installed to: /data/UserData/move-anything/modules/tools/$MODULE_ID/"
+echo ""
+echo "Restart Move Anything to load the new module."
