@@ -140,6 +140,12 @@ var ledInitIndex = 0;
 
 /* ========== Helpers ========== */
 
+function announce(text) {
+    if (typeof host_announce_screenreader === "function") {
+        host_announce_screenreader(text);
+    }
+}
+
 function clamp(v, lo, hi) {
     return v < lo ? lo : (v > hi ? hi : v);
 }
@@ -191,6 +197,7 @@ function buildMenuItems() {
                     barsIndex = idx;
                     sendBars();
                     readSpeed();
+                    announce(v + " bars, " + speed.toFixed(2) + "x speed");
                 }
             }
         },
@@ -205,6 +212,7 @@ function buildMenuItems() {
                 targetBpm = v;
                 sendBpm();
                 readSpeed();
+                announce(v + " BPM, " + speed.toFixed(2) + "x speed");
             }
         },
         {
@@ -217,6 +225,7 @@ function buildMenuItems() {
             set: function(v) {
                 pitchSemitones = v;
                 sendPitch();
+                announce(formatPitch(v));
             }
         },
         {
@@ -226,6 +235,7 @@ function buildMenuItems() {
                 if (fileName) {
                     saveChoice = 0;
                     currentView = VIEW_SAVE_PROMPT;
+                    announce("Save as, Overwrite or New File");
                 }
             }
         }
@@ -474,6 +484,19 @@ function drawBrowserList(items, selIdx, topY) {
     }
 }
 
+/* ========== Screen reader helpers ========== */
+
+function announceMenuItem(item) {
+    var val = "";
+    if (item.get) val = String(item.get());
+    if (item.label === "Pitch" && val) val = formatPitch(parseInt(val, 10));
+    if (val) {
+        announce(item.label + ", " + val);
+    } else {
+        announce(item.label);
+    }
+}
+
 /* ========== Menu input handling (matches shared/menu_nav.mjs) ========== */
 
 function handleJogScroll(delta) {
@@ -492,7 +515,11 @@ function handleJogScroll(delta) {
         if (item.set && editValue !== null) item.set(editValue);
     } else {
         var dir2 = delta > 0 ? 1 : -1;
-        selectedIndex = clamp(selectedIndex + dir2, 0, menuItems.length - 1);
+        var newIndex = clamp(selectedIndex + dir2, 0, menuItems.length - 1);
+        if (newIndex !== selectedIndex) {
+            selectedIndex = newIndex;
+            announceMenuItem(menuItems[selectedIndex]);
+        }
     }
 }
 
@@ -502,9 +529,11 @@ function handleJogClick() {
     if (editing) {
         editing = false;
         editValue = null;
+        announce(item.label + " set");
     } else if (item.type === TYPE_VALUE || item.type === TYPE_ENUM) {
         editing = true;
         editValue = item.get ? item.get() : null;
+        announce("Editing " + item.label);
     } else if (item.type === TYPE_ACTION) {
         if (item.onAction) item.onAction();
     }
@@ -688,6 +717,7 @@ function handleNoteOn(note) {
         playing = !playing;
         sendPlaying(playing);
         updatePadLEDs();
+        announce(playing ? "Playing" : "Stopped");
     }
 }
 
@@ -753,6 +783,7 @@ globalThis.tick = function() {
             handleJogScroll(pendingJogDelta);
         } else if (currentView === VIEW_SAVE_PROMPT) {
             saveChoice = saveChoice === 0 ? 1 : 0;
+            announce(saveChoice === 0 ? "Overwrite" : "New File");
         } else if (currentView === VIEW_SAVE_BROWSE) {
             destBrowserNavigate(pendingJogDelta);
         }
@@ -773,6 +804,7 @@ globalThis.tick = function() {
                 saveResult = result;
                 currentView = VIEW_SAVED;
                 exitTimer = 150;
+                announce(result === "ok" ? "Save complete" : "Save failed");
             }
         }
     } else if (currentView === VIEW_SAVED) {
