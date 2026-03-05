@@ -107,6 +107,8 @@ var currentView = VIEW_MAIN;
 /* DSP state */
 var targetBpm = 120;
 var barsIndex = 2;
+var barsFloat = 1.0;
+var sourceBpm = 0;
 var pitchSemitones = 0;
 var playing = false;
 var fileName = "";
@@ -156,8 +158,21 @@ function truncStr(s, max) {
 }
 
 function getSourceBpm() {
-    if (sourceDuration <= 0) return 0;
-    return Math.round(barsValues[barsIndex] * 4.0 * 60.0 / sourceDuration);
+    return sourceBpm;
+}
+
+function formatBars(val) {
+    /* Show clean label for preset values */
+    for (var i = 0; i < barsValues.length; i++) {
+        if (Math.abs(val - barsValues[i]) < 0.005) return barsLabels[i];
+    }
+    /* Non-preset: show as bars.beats.sixteenths */
+    var totalSixteenths = Math.round(val * 16);
+    var bars = Math.floor(totalSixteenths / 16);
+    var remaining = totalSixteenths % 16;
+    var beats = Math.floor(remaining / 4) + 1;
+    var sixteenths = (remaining % 4) + 1;
+    return bars + "." + beats + "." + sixteenths;
 }
 
 function getStem(path) {
@@ -190,12 +205,13 @@ function buildMenuItems() {
             type: TYPE_ENUM,
             label: "Bars",
             options: barsLabels,
-            get: function() { return barsLabels[barsIndex]; },
+            get: function() { return formatBars(barsFloat); },
             set: function(v) {
                 var idx = barsLabels.indexOf(v);
                 if (idx >= 0) {
                     barsIndex = idx;
                     sendBars();
+                    readBarsFloat();
                     readSpeed();
                     announce(v + " bars, " + speed.toFixed(2) + "x speed");
                 }
@@ -258,6 +274,12 @@ function readDspState() {
     v = host_module_get_param("target_bars");
     if (v) barsIndex = clamp(parseInt(v, 10) || 0, 0, barsValues.length - 1);
 
+    v = host_module_get_param("bars_float");
+    if (v) barsFloat = parseFloat(v);
+
+    v = host_module_get_param("source_bpm");
+    if (v) sourceBpm = parseInt(v, 10) || 0;
+
     v = host_module_get_param("pitch_semitones");
     if (v) pitchSemitones = clamp(parseInt(v, 10) || 0, -12, 12);
 
@@ -281,8 +303,18 @@ function readPlayState() {
 
 function sendBpm() { host_module_set_param("target_bpm", String(targetBpm)); }
 function sendBars() { host_module_set_param("target_bars", String(barsIndex)); }
+function sendSourceBpm() { host_module_set_param("source_bpm", String(sourceBpm)); }
 function sendPitch() { host_module_set_param("pitch_semitones", String(pitchSemitones)); }
 function sendPlaying(v) { host_module_set_param("playing", v ? "1" : "0"); }
+
+function readBarsFloat() {
+    var v = host_module_get_param("bars_float");
+    if (v) barsFloat = parseFloat(v);
+    v = host_module_get_param("source_bpm");
+    if (v) sourceBpm = parseInt(v, 10) || 0;
+    v = host_module_get_param("target_bars");
+    if (v) barsIndex = clamp(parseInt(v, 10) || 0, 0, barsValues.length - 1);
+}
 
 /* ========== Destination directory browser ========== */
 
@@ -501,29 +533,56 @@ function announceMenuItem(item) {
 
 function handleJogScroll(delta) {
     if (editing) {
-        var item = menuItems[selectedIndex];
-        if (item.type === TYPE_VALUE) {
-            var step = item.step || 1;
-            editValue = clamp(editValue + delta * step, item.min, item.max);
-        } else if (item.type === TYPE_ENUM) {
-            var opts = item.options;
-            var idx = opts.indexOf(editValue);
-            var dir = delta > 0 ? 1 : -1;
-            var newIdx = (idx + dir + opts.length) % opts.length;
-            editValue = opts[newIdx];
+        if (selectedIndex === -1) {
+            /* Editing source BPM in subtitle */
+            editValue = clamp(editValue + delta, 20, 400);
+            sourceBpm = editValue;
+            sendSourceBpm();
+            readBarsFloat();
+            readSpeed();
+            announce(editValue + " source BPM, " + formatBars(barsFloat) + " bars");
+        } else {
+            var item = menuItems[selectedIndex];
+            if (item.type === TYPE_VALUE) {
+                var step = item.step || 1;
+                editValue = clamp(editValue + delta * step, item.min, item.max);
+            } else if (item.type === TYPE_ENUM) {
+                var opts = item.options;
+                var idx = opts.indexOf(editValue);
+                var dir = delta > 0 ? 1 : -1;
+                var newIdx = (idx + dir + opts.length) % opts.length;
+                editValue = opts[newIdx];
+            }
+            if (item.set && editValue !== null) item.set(editValue);
         }
-        if (item.set && editValue !== null) item.set(editValue);
     } else {
         var dir2 = delta > 0 ? 1 : -1;
-        var newIndex = clamp(selectedIndex + dir2, 0, menuItems.length - 1);
+        var newIndex = clamp(selectedIndex + dir2, -1, menuItems.length - 1);
         if (newIndex !== selectedIndex) {
             selectedIndex = newIndex;
-            announceMenuItem(menuItems[selectedIndex]);
+            if (selectedIndex === -1) {
+                announce("Source BPM, " + sourceBpm);
+            } else {
+                announceMenuItem(menuItems[selectedIndex]);
+            }
         }
     }
 }
 
 function handleJogClick() {
+    if (selectedIndex === -1) {
+        if (editing) {
+            editing = false;
+            editValue = null;
+            announce("Source BPM set");
+        } else {
+            editing = true;
+            editValue = sourceBpm;
+            announce("Editing Source BPM");
+        }
+        return;
+    }
+
     var item = menuItems[selectedIndex];
 
     if (editing) {
@@ -554,13 +613,21 @@ function drawMain() {
     var titleStr = "Stretch: " + truncStr(fileName || "(no file)", 12);
     drawHeader(titleStr);
 
-    var srcBpm = getSourceBpm();
-    var srcStr = srcBpm > 0 ? "Src: " + srcBpm + " BPM" : "Src: -- BPM";
+    var srcBpmVal = (editing && selectedIndex === -1) ? editValue : sourceBpm;
+    var srcStr = srcBpmVal > 0 ? "Src: " + srcBpmVal + " BPM" : "Src: -- BPM";
     var rightStr = pitchSemitones !== 0
         ? formatPitch(pitchSemitones) + " " + speed.toFixed(2) + "x"
         : speed.toFixed(2) + "x";
-    print(2, SUBTITLE_Y, srcStr, 1);
-    print(SCREEN_W - rightStr.length * CHAR_W - 2, SUBTITLE_Y, rightStr, 1);
+
+    if (selectedIndex === -1) {
+        fill_rect(0, SUBTITLE_Y - 1, SCREEN_W, LIST_LINE_H, 1);
+        if (editing) srcStr = "Src: [" + srcBpmVal + "] BPM";
+        print(2, SUBTITLE_Y, srcStr, 0);
+        print(SCREEN_W - rightStr.length * CHAR_W - 2, SUBTITLE_Y, rightStr, 0);
+    } else {
+        print(2, SUBTITLE_Y, srcStr, 1);
+        print(SCREEN_W - rightStr.length * CHAR_W - 2, SUBTITLE_Y, rightStr, 1);
+    }
 
     drawMenuList(menuItems, selectedIndex, editing);
 
