@@ -90,7 +90,9 @@ struct instance_t {
     /* Parameters */
     float  project_bpm;
     int    target_bpm;
-    int    bars_index;      // index into BARS_OPTIONS
+    int    bars_index;      // index into BARS_OPTIONS (nearest preset)
+    float  bars_float;      // actual bars value (may be non-preset for imperfect loops)
+    int    source_bpm;      // user-editable source BPM (0 = auto from bars preset)
     int    save_mode;       // 0 = overwrite, 1 = copy
     int    pitch_semitones; // -12 to +12 (0 = no pitch change)
 
@@ -189,8 +191,7 @@ static void recalc_speed(instance_t *inst) {
         inst->speed = 1.0f;
         return;
     }
-    float target_bars = BARS_OPTIONS[inst->bars_index];
-    float target_duration = target_bars * 4.0f * 60.0f / (float)inst->target_bpm;
+    float target_duration = inst->bars_float * 4.0f * 60.0f / (float)inst->target_bpm;
     if (target_duration <= 0.0f) {
         inst->speed = 1.0f;
         return;
@@ -199,6 +200,29 @@ static void recalc_speed(instance_t *inst) {
 
     /* Update live stretcher speed (takes effect on next grain) */
     inst->req.speed = (double)inst->speed;
+}
+
+/* Recompute source_bpm from bars_float and duration */
+static void sync_source_bpm(instance_t *inst) {
+    if (inst->duration_secs > 0.0f) {
+        inst->source_bpm = (int)roundf(inst->bars_float * 4.0f * 60.0f / inst->duration_secs);
+        if (inst->source_bpm < 1) inst->source_bpm = 1;
+    }
+}
+
+/* Recompute bars_float from source_bpm and duration */
+static void sync_bars_from_source_bpm(instance_t *inst) {
+    if (inst->source_bpm > 0 && inst->duration_secs > 0.0f) {
+        inst->bars_float = inst->source_bpm * inst->duration_secs / 240.0f;
+        /* Update bars_index to nearest preset */
+        int best = 0;
+        float best_dist = fabsf(inst->bars_float - BARS_OPTIONS[0]);
+        for (int i = 1; i < NUM_BARS_OPTIONS; i++) {
+            float d = fabsf(inst->bars_float - BARS_OPTIONS[i]);
+            if (d < best_dist) { best_dist = d; best = i; }
+        }
+        inst->bars_index = best;
+    }
 }
 
 /* ------------------------------------------------------------------ */
@@ -220,6 +244,8 @@ static void auto_guess_bars(instance_t *inst) {
         }
     }
     inst->bars_index = best;
+    inst->bars_float = BARS_OPTIONS[best];
+    sync_source_bpm(inst);
 }
 
 /* ------------------------------------------------------------------ */
@@ -567,6 +593,8 @@ static void *stretch_create(const char *module_dir, const char *json_defaults) {
     inst->project_bpm = 120.0f;
     inst->target_bpm  = 120;
     inst->bars_index  = 2;  // "1" bar
+    inst->bars_float  = 1.0f;
+    inst->source_bpm  = 0;  // 0 = not yet computed
     inst->save_mode   = 0;
     inst->speed       = 1.0f;
 
@@ -644,6 +672,16 @@ static void stretch_set_param(void *ptr, const char *key, const char *val) {
         if (idx < 0) idx = 0;
         if (idx >= NUM_BARS_OPTIONS) idx = NUM_BARS_OPTIONS - 1;
         inst->bars_index = idx;
+        inst->bars_float = BARS_OPTIONS[idx];
+        sync_source_bpm(inst);
+        recalc_speed(inst);
+    }
+    else if (strcmp(key, "source_bpm") == 0) {
+        int v = atoi(val);
+        if (v < 20)  v = 20;
+        if (v > 400) v = 400;
+        inst->source_bpm = v;
+        sync_bars_from_source_bpm(inst);
         recalc_speed(inst);
     }
     else if (strcmp(key, "pitch_semitones") == 0) {
@@ -691,6 +729,10 @@ static int stretch_get_param(void *ptr, const char *key, char *buf, int buf_len)
         return snprintf(buf, buf_len, "%s", BARS_LABELS[inst->bars_index]);
     if (strcmp(key, "pitch_semitones") == 0)
         return snprintf(buf, buf_len, "%d", inst->pitch_semitones);
+    if (strcmp(key, "source_bpm") == 0)
+        return snprintf(buf, buf_len, "%d", inst->source_bpm);
+    if (strcmp(key, "bars_float") == 0)
+        return snprintf(buf, buf_len, "%.2f", inst->bars_float);
     if (strcmp(key, "save_mode") == 0)
         return snprintf(buf, buf_len, "%d", inst->save_mode);
     if (strcmp(key, "playing") == 0)
